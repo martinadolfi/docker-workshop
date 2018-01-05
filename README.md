@@ -262,14 +262,261 @@ Podemos ver que está funcionando haciendo:
 curl http://localhost/index.html
 ```
 
-## Referencias:
+Podemos ver los logs del container de esta manera:
 
+```bash
+docker logs -f mi-instancia
+```
+
+Detenemos el container con esto:
+
+```bash
+docker stop mi-instancia
+```
+
+*TIP: noten que como lo levantamos con `--rm` ademas de detenerlo, lo borra*
+
+*TIP: Pueden utilizar como referencia para crear imagenes complejas las referencias de Dockerfiles de la librería de docker, como por ejemplo el de mariadb, el de wordpress, o cualquier otro, mientras traten de mantener la misma filosofía.*
+
+*TIP (el regreso):tengan en cuenta que no todo el mundo crea los dockerfiles con la filosofía correcta, uno podría crear una imagen de wordpress donde en el mismo container corra el wordpress y la base de datos, y funcionaría, pero no seguiría la filosofía planteada*
+
+## docker-compose
+
+Primero instalaremos docker-compose de la siguiente manera:
+
+```bash
+sudo curl -L https://github.com/docker/compose/releases/download/1.18.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+docker-compose --version
+
+```
+
+Luego creamos un archivo de nombre `docker-compose.yml` con el siguiente contenido.
+
+```yml
+version: '3'
+
+services:
+
+  wordpress:
+    image: wordpress:4.9.1-php5.6
+    restart: unless-stopped
+    ports:
+      - 80:80
+    environment:
+      WORDPRESS_DB_PASSWORD: my-db-pass
+    volumes:
+      - sitedata:/var/www/html
+
+  mysql:
+    image: mariadb:10.2.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: my-db-pass
+    volumes:
+      - dbdata:/var/lib/mysql
+
+volumes:
+  dbdata:
+    driver: local
+  sitedata:
+    driver: local
+
+```
+
+Y luego para correrlo, lo haremos de la siguiente manera:
+
+```bash
+docker-compose up -d
+```
+
+Si queremos ver en que estado estan esos containers :
+
+```bash
+docker-compose ps
+```
+
+*TIP: presten atención a la diferencia con el comando `docker ps`*
+
+Podemos vel el sitio levantado o bien desde un navegador, o bien desde la linea de comandos con:
+
+```bash
+curl -I  http://localhost
+```
+
+Aqui vemos que está redirigiendo a el script de finalización de configuración de wordpress.
+
+Si queremos ver los logs de los containers:
+
+```bash
+docker-compose logs -f
+```
+
+Configuremos desde el navegador el sitio, y hagamos un post.
+
+Luego intentaremos, sin perder ningun dato, actualizar la imagen de wordpress que está corriendo, para eso, editaremos el `docker-compose.yml` que habíamos creado y cambiaremos la imagen de esta:
+
+```yml
+    image: wordpress:4.9.1-php5.6
+```
+
+a esta:
+
+```yml
+    image: wordpress:4.9.1-php7.2
+```
+
+Para actualizar el container que está corriendo, hacemos:
+
+```bash
+docker-compose up -d
+```
+
+Veamos nuevamente el sitio y veremos que los datos se han mantenido, e inclusive ni siquiera perdimos la sesión.
+
+Ahora detengamoslo:
+
+```bash
+docker-compose stop
+```
+
+*TIP: con `start` vuelve a levantar*
+
+Y ahora, matemoslo definitivamente:
+
+```bash
+docker-compose down
+```
+
+## docker stack (swarm y otras magias)
+
+Vamos a crear una aplicación donde podamos manejar varias replicas de una imagen
+
+Iniciemos un swarm con:
+
+```bash
+docker swarm init
+```
+
+Creamos un archivo `docker-compose.yml` de con el siguiente contenido:
+
+```yml
+version: "3"
+services:
+  web:
+    image: mi-web-estatica
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 50M
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "80:80"
+    networks:
+      - webnet
+networks:
+  webnet:
+
+```
+
+Levantamos el servicio con:
+
+```bash
+docker stack deploy -c docker-compose.yml mystaticsite
+```
+
+Verificamos lo que esta levantado con:
+
+```bash
+docker service ls
+```
+
+Vemos el log de la aplicación con:
+```bash
+docker service logs -f mystaticsite_web
+```
+
+Mirando los logs, naveguemos para corroborar que efectivamente le pega a diferentes containers.
+
+Ahora quitaremos este stack con:
+
+```bash
+docker stack rm mystaticpage
+```
+
+Si queremos salir del swarm hacemos:
+
+```bash
+docker swarm leave --force
+```
+
+Como desafío adicional, probamos repetir el procedimiento con wordpress.
+
+```yml
+version: "3"
+services:
+ wordpress:
+    image: wordpress:4.9.1-php5.6
+    ports:
+      - 80:80
+    environment:
+      WORDPRESS_DB_PASSWORD: my-db-pass
+    volumes:
+      - sitedata:/var/www/html
+    networks:
+      - webnet
+      - backend
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+ mysql:
+    image: mariadb:10.2.11
+    environment:
+      MYSQL_ROOT_PASSWORD: my-db-pass
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  webnet:
+  backend:
+
+volumes:
+  dbdata:
+    driver: local
+  sitedata:
+    driver: local
+
+```
+
+
+
+## Referencias:
+docker'
 https://docs.docker.com/compose/compose-file/
 
 https://docs.docker.com/engine/reference/builder/#usage
+
+https://docs.docker.com/get-started/
 
 https://github.com/docker/labs/tree/master/beginner
 
 https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/
 
 https://hub.docker.com/_/nginx/
+
+https://docs.docker.com/compose/install/
+
+https://hub.docker.com/_/wordpress/
+
+https://hub.docker.com/_/mariadb/
+
