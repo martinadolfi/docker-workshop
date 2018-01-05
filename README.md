@@ -374,6 +374,12 @@ docker-compose up -d
 
 Veamos nuevamente el sitio y veremos que los datos se han mantenido, e inclusive ni siquiera perdimos la sesión.
 
+Con esto podemos ver los volumenes creados:
+
+```bash
+docker volume ls
+```
+
 Ahora detengamoslo:
 
 ```bash
@@ -387,6 +393,44 @@ Y ahora, matemoslo definitivamente:
 ```bash
 docker-compose down
 ```
+
+## Overrides
+
+Probemos para el caso del wordpress, un ejemplo donde en producción hay que cambiarle las claves de conexión a la base de datos. Para eso haremos un nuevo archivo `docker-compose-prod.yml` con el siguiente contenido:
+
+```yml
+version: "3"
+services:
+ wordpress:
+    environment:
+      WORDPRESS_DB_PASSWORD: my-db-pass2
+ mysql:
+    environment:
+      MYSQL_ROOT_PASSWORD: my-db-pass2
+```
+
+Por las dudas, quitaremos todos los volumenes existentes:
+
+```bash
+docker volume prune
+```
+
+Ahora levantaremos los servicios, pero utilizando la combinación de ambos  docker-compose.yml
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose-prod.yml up -d
+```
+
+*TIP: debemos tener en cuenta que en estos casos, cada vez que usamos `docker-compose` debemos hacerlo con todos los `-f`, por ejemplo para `logs`, para `ps`, etc.*
+
+Si utilizamos docker inspect para ver como quedaron las variables de entorno, las encontraremos así:
+
+```bash
+docker inspect workshop_wordpress_1 | grep PASSWORD
+docker inspect workshop_mysql_1 | grep PASSWORD
+```
+
+*TIP: en el comando de acá arriba, la palabra `workshop` es por el directorio en donde está parado*
 
 ## docker stack (swarm y otras magias)
 
