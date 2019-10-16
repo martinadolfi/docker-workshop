@@ -545,7 +545,7 @@ volumes:
 
 
 ## Referencias:
-docker'
+
 https://docs.docker.com/compose/compose-file/
 
 https://docs.docker.com/engine/reference/builder/#usage
